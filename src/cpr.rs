@@ -226,6 +226,7 @@ pub fn get_position(cpr_frames: (&CPRFrame, &CPRFrame)) -> Option<Position> {
         _ => return None,
     };
 
+
     let cpr_lat_even = even_frame.position.latitude / CPR_MAX;
     let cpr_lon_even = even_frame.position.longitude / CPR_MAX;
     let cpr_lat_odd = odd_frame.position.latitude / CPR_MAX;
@@ -233,9 +234,12 @@ pub fn get_position(cpr_frames: (&CPRFrame, &CPRFrame)) -> Option<Position> {
 
     let j = (59.0 * cpr_lat_even - 60.0 * cpr_lat_odd + 0.5).floor();
 
-    let mut lat_even = D_LAT_EVEN * (j % 60.0 + cpr_lat_even);
-    let mut lat_odd = D_LAT_ODD * (j % 59.0 + cpr_lat_odd);
+    // see http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
 
+    // let mut lat_even = D_LAT_EVEN * (j % 60.0 + cpr_lat_even);
+    // let mut lat_odd = D_LAT_ODD * (j % 59.0 + cpr_lat_odd);
+    let mut lat_even = D_LAT_EVEN * (modulo_pos(j,  60.0) + cpr_lat_even);
+    let mut lat_odd = D_LAT_ODD * (modulo_pos(j, 59.0) + cpr_lat_odd);
     if lat_even >= 270.0 {
         lat_even -= 360.0;
     }
@@ -256,6 +260,13 @@ pub fn get_position(cpr_frames: (&CPRFrame, &CPRFrame)) -> Option<Position> {
         latitude: lat,
         longitude: lon,
     })
+}
+
+// see http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
+fn modulo_pos(v: f64, modval: f64) -> f64 {
+    let mut v = v % modval;
+    if v < 0.0 { v += modval }
+    v
 }
 
 fn get_lat_lon(lat: f64, cpr_lon_even: f64, cpr_lon_odd: f64, parity: &Parity) -> (f64, f64) {
