@@ -34,6 +34,12 @@ impl fmt::Display for ICAOAddress {
     }
 }
 
+impl From<ICAOAddress> for [u8; 3] {
+    fn from(value: ICAOAddress) -> Self {
+        [value.0, value.1, value.2]
+    }
+}
+
 /// 16 bit transponder squawk code.
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct Squawk(pub(crate) u8, pub(crate) u8);
