@@ -172,6 +172,15 @@ pub enum ADSBMessageKind {
         /// Source for vertical rate information
         vertical_rate_source: VerticalRateSource,
     },
+    /// Surface position message (TC 5-8)    
+    SurfacePosition {
+        /// Ground speed in knots
+        ground_speed: Option<f64>,
+        /// Ground track in degrees
+        ground_track: Option<f64>,
+        /// Odd or even frame encoding position information in Ground CPR format
+        ground_cpr_frame: CPRFrame,
+    }
 }
 
 #[cfg(test)]

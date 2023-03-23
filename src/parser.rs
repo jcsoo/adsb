@@ -151,6 +151,58 @@ fn parse_airborne_velocity(input: (&[u8], usize)) -> IResult<(&[u8], usize), ADS
     Ok((input, message))
 }
 
+
+fn parse_surface_position(input: (&[u8], usize)) -> IResult<(&[u8], usize), ADSBMessageKind> {
+    let (input, _): (_, u8) =  verify(take_bits(5u8), |tc| *tc >= 5 && *tc <= 8)(input)?;
+    let (input, ground_speed): (_, Option<f64>) = parse_ground_speed(input)?;
+    let (input, ground_track): (_, Option<f64>) = parse_ground_track(input)?;
+    let (input, _): (_, u8) = take_bits(1u8)(input)?;
+    let (input, cpr_parity) = parse_cpr_parity(input)?;
+    let (input, (cpr_latitude, cpr_longitude)) =
+        tuple((parse_coordinate, parse_coordinate))(input)?;
+
+    let message = ADSBMessageKind::SurfacePosition { 
+        ground_speed,
+        ground_track,
+        ground_cpr_frame: CPRFrame {
+            parity: cpr_parity,
+            position: Position {
+                latitude: cpr_latitude.into(),
+                longitude: cpr_longitude.into(),
+            },
+        },
+    };
+    Ok((input, message))
+}
+
+fn parse_ground_speed(input: (&[u8], usize)) -> IResult<(&[u8], usize), Option<f64>> {
+    let (input, bits): (_, u8) = take_bits(7u8)(input)?;
+    let ground_speed = match bits {
+        0 => None,
+        1 => Some(0.0),
+        2..=8 => Some(0.0 + 0.125 * (bits - 2) as f64),
+        9..=12 => Some(1.0 + 0.25 * (bits - 9) as f64),
+        13..=38 => Some(2.0 + 0.5 * (bits - 13) as f64),
+        39..=93 => Some(15.0 + 1.0 * (bits - 39) as f64),
+        94..=108 => Some(70.0 + 2.0 * (bits - 94) as f64),
+        109..=123 => Some(100.0 + 5.0 * (bits - 109) as f64),
+        124 => Some(std::f64::INFINITY),
+        125..=127 => Some(std::f64::NAN),
+        _ => unreachable!()
+    };
+    Ok((input, ground_speed))
+}
+
+fn parse_ground_track(input: (&[u8], usize)) -> IResult<(&[u8], usize), Option<f64>> {
+    let (input, (_valid, bits)): (_, (u8, u8)) = tuple((take_bits(1u8), take_bits(7u8)))(input)?;
+    let ground_track = match bits {
+        0 => None,
+        _ => Some((bits as f64) * 360.0 / 128.0)
+    };
+
+    Ok((input, ground_track))
+}
+
 fn parse_icao_address(input: (&[u8], usize)) -> IResult<(&[u8], usize), ICAOAddress> {
     let (input, (a, b, c)): (_, (u8, u8, u8)) =
         tuple((take_bits(8u8), take_bits(8u8), take_bits(8u8)))(input)?;
@@ -160,6 +212,7 @@ fn parse_icao_address(input: (&[u8], usize)) -> IResult<(&[u8], usize), ICAOAddr
 
 fn parse_adsb_message_kind(input: (&[u8], usize)) -> IResult<(&[u8], usize), ADSBMessageKind> {
     alt((
+        parse_surface_position,
         parse_aircraft_identification,
         parse_airborne_position,
         parse_airborne_velocity,
